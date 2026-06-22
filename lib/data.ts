@@ -1168,6 +1168,42 @@ export const fetchChatRooms = async (): Promise<ChatRoom[]> => safeDbQuery(async
   }))
 }, [])
 
+export const createChatRoom = async (name: string, type: 'channel' | 'dm' | 'group', members: string[], projectId?: string): Promise<ChatRoom | null> => safeDbQuery(async () => {
+  const { data: roomData, error: roomError } = await supabase
+    .from('chat_rooms')
+    .insert([{
+      name,
+      type,
+      project_id: projectId || null
+    }])
+    .select()
+    .single()
+    
+  if (roomError || !roomData) return null
+  
+  const memberInserts = members.map(m => ({
+    room_id: roomData.id,
+    user_id: m
+  }))
+  
+  const { error: memberError } = await supabase
+    .from('chat_room_members')
+    .insert(memberInserts)
+    
+  if (memberError) {
+    console.error('Add members error:', memberError)
+  }
+  
+  return {
+    id: roomData.id,
+    type: roomData.type as any,
+    name: roomData.name,
+    projectId: roomData.project_id || undefined,
+    members: members,
+    unreadCount: 0
+  }
+}, null)
+
 export const fetchChatMessages = async (roomId: string): Promise<ChatMessage[]> => safeDbQuery(async () => {
   const { data, error } = await supabase
     .from('chat_messages')

@@ -46,15 +46,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return
     }
     if (currentUser.approvalStatus === 'pending') {
-      router.push('/account/pending')
+      router.push('/pending')
       return
     }
     if (currentUser.approvalStatus === 'rejected') {
-      router.push('/account/rejected')
+      router.push('/rejected')
       return
     }
     if (currentUser.approvalStatus === 'blocked' || !currentUser.isActive) {
-      router.push('/account/blocked')
+      router.push('/blocked')
       return
     }
     setUser(currentUser)

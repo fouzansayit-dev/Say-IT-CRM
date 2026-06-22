@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Hash, Send, Plus, Search, Pin, Smile, Paperclip,
-  Phone, Video, MoreHorizontal, MessageSquare
+  Phone, Video, MoreHorizontal, MessageSquare, X
 } from 'lucide-react'
-import { fetchChatRooms, fetchChatMessages, sendChatMessage, getCurrentUser, type ChatMessage } from '@/lib/data'
+import { fetchChatRooms, fetchChatMessages, sendChatMessage, getCurrentUser, fetchAllUsers, createChatRoom, type ChatMessage, type User } from '@/lib/data'
 import { supabase } from '@/lib/supabase'
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils'
 
@@ -16,6 +16,9 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<User[]>([])
+  const [searchContact, setSearchContact] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -30,6 +33,14 @@ export default function ChatPage() {
     }
     loadRooms()
   }, [])
+
+  useEffect(() => {
+    if (isAddContactOpen && availableUsers.length === 0) {
+      fetchAllUsers().then(users => {
+        setAvailableUsers(users.filter(u => u.id !== user?.id))
+      })
+    }
+  }, [isAddContactOpen, user])
 
   useEffect(() => {
     if (!activeRoom) return
@@ -119,7 +130,7 @@ export default function ChatPage() {
           <div className="px-3 pt-2 pb-3">
             <div className="flex items-center justify-between px-2 mb-1">
               <p className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Direct Messages</p>
-              <button className="text-text-muted hover:text-text border-0 bg-transparent cursor-pointer"><Plus className="w-3 h-3" /></button>
+              <button onClick={() => setIsAddContactOpen(true)} className="text-text-muted hover:text-text border-0 bg-transparent cursor-pointer"><Plus className="w-3 h-3" /></button>
             </div>
             {rooms.filter(r => r.type === 'dm').map(room => (
               <button
@@ -280,6 +291,66 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Add Contact Modal */}
+      <AnimatePresence>
+        {isAddContactOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="text-lg font-bold text-text">New Message</h3>
+                <button onClick={() => setIsAddContactOpen(false)} className="p-1 text-text-muted hover:text-text rounded-lg hover:bg-surface-2 transition-colors border-0 bg-transparent cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchContact}
+                    onChange={(e) => setSearchContact(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-surface-2 border border-border rounded-lg text-sm text-text focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {availableUsers
+                  .filter(u => u.name.toLowerCase().includes(searchContact.toLowerCase()))
+                  .map(u => (
+                  <button
+                    key={u.id}
+                    onClick={async () => {
+                      const newRoom = await createChatRoom(u.name, 'dm', [user.id, u.id]);
+                      if (newRoom) {
+                        setRooms(prev => [newRoom, ...prev])
+                        setActiveRoom(newRoom)
+                        setIsAddContactOpen(false)
+                        setSearchContact('')
+                      }
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-2 text-left transition-colors border-0 bg-transparent cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-full avatar flex items-center justify-center text-xs font-bold uppercase">
+                      {getInitials(u.name)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-text">{u.name}</p>
+                      <p className="text-xs text-text-muted">{u.role}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
