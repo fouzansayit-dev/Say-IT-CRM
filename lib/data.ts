@@ -1275,6 +1275,7 @@ export const signUp = async (
       email,
       password,
       options: {
+        emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login` : 'https://say-it-crm.vercel.app/login',
         data: {
           name,
           role,
